@@ -1,6 +1,6 @@
 variable "subscription-id" {
   type = string
-  default = "0000000000000"
+  default = "25cc9009-2580-4987-936c-95aaab093023"
 }
 
 #virtual network variables
@@ -22,7 +22,7 @@ variable "storage-account" {
 
 variable "storage-account-container" {
   type = string
-  default = "dfy"
+  default = "dfy" 
 }
 
 variable "redis" {
@@ -55,6 +55,11 @@ variable "aca-loga" {
   default = "dify-loga"
 }
 
+variable "isProvidedCert" {
+  type = bool
+  default = true
+}
+
 variable "aca-cert-path" {
   type = string
   default = "./certs/difycert.pfx"
@@ -70,12 +75,30 @@ variable "aca-dify-customer-domain" {
   default = "dify.nikadwang.com"
 }
 
+variable "aca-app-min-count" {
+  type = number
+  default = 0
+}
+
+variable "is_aca_enabled" {
+  type = bool
+  default = false
+}
+
 variable "dify-api-image" {
   type = string
-  default = "langgenius/dify-api:0.6.11"
+  # default = "langgenius/dify-api:0.6.11"
+  default = "langgenius/dify-api:0.7.1"
 }
 
 variable "dify-sandbox-image" {
   type = string
-  default = "langgenius/dify-sandbox:0.2.1"
+  # default = "langgenius/dify-sandbox:0.2.1"
+  default = "langgenius/dify-sandbox:0.2.6"
+}
+
+variable "dify-web-image" {
+  type = string
+  # default = "langgenius/dify-web:0.6.11"
+  default = "langgenius/dify-web:0.7.1"
 }

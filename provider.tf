@@ -4,8 +4,11 @@ terraform {
       source  = "hashicorp/azurerm"
       version = "3.109.0"
        }
+      random = {
+      source  = "hashicorp/random"
+      version = "~>3.0"
     }
-
+    }
 }
 
 # Configure the Microsoft Azure Provider

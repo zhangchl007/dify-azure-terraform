@@ -19,9 +19,15 @@ resource "azurerm_container_app_environment" "dify-aca-env" {
   }
 
   depends_on = [ 
-    azurerm_redis_cache.redis,
+    # azurerm_redis_cache.redis[0],
     azurerm_postgresql_flexible_server.postgres
    ]
+  
+  # dynamic "depends_on" {
+  #   for_each = var.is_aca_enabled ? [azurerm_redis_cache.redis[0]] : []
+  #   content {}
+  # }
+  
 }
 
 resource "azurerm_container_app_environment_storage" "nginxfileshare" {
@@ -35,6 +41,7 @@ resource "azurerm_container_app_environment_storage" "nginxfileshare" {
 }
 
 resource "azurerm_container_app_environment_certificate" "difycerts" {
+  count                        = var.isProvidedCert ? 1 : 0
   name                         = "difycerts"
   container_app_environment_id = azurerm_container_app_environment.dify-aca-env.id
   certificate_blob_base64 = filebase64(var.aca-cert-path)
@@ -53,7 +60,7 @@ resource "azurerm_container_app" "nginx" {
       concurrent_requests = "10"
     }
     max_replicas = 10
-    min_replicas = 0
+    min_replicas = var.aca-app-min-count
     container {
       name   = "nginx"
       image  = "nginx:latest"
@@ -80,10 +87,13 @@ resource "azurerm_container_app" "nginx" {
       latest_revision = true
     }
     transport = "auto"
-    
-    custom_domain {
-      name = var.aca-dify-customer-domain
-      certificate_id = azurerm_container_app_environment_certificate.difycerts.id
+
+    dynamic "custom_domain" {
+      for_each = var.isProvidedCert ? [1] : []
+      content {
+        name           = var.aca-dify-customer-domain
+        certificate_id = azurerm_container_app_environment_certificate.difycerts[0].id
+      }
     }
   }
 }
@@ -110,7 +120,7 @@ resource "azurerm_container_app" "ssrfproxy" {
       concurrent_requests = "10"
     }
     max_replicas = 10
-    min_replicas = 0
+    min_replicas = var.aca-app-min-count
     container {
       name   = "ssrfproxy"
       image  = "ubuntu/squid:latest"
@@ -163,7 +173,7 @@ resource "azurerm_container_app" "sandbox" {
       concurrent_requests = "10"
     }
     max_replicas = 10
-    min_replicas = 0
+    min_replicas = var.aca-app-min-count
     container {
       name   = "langgenius"
       image  = var.dify-sandbox-image
@@ -236,7 +246,7 @@ resource "azurerm_container_app" "worker" {
       concurrent_requests = "10"
     }
     max_replicas = 10
-    min_replicas = 1
+    min_replicas = var.aca-app-min-count
     container {
       name   = "langgenius"
       image  = var.dify-api-image
@@ -277,7 +287,8 @@ resource "azurerm_container_app" "worker" {
       }
       env {
         name  = "REDIS_HOST"
-        value = azurerm_redis_cache.redis.hostname
+        # value = azurerm_redis_cache.redis[0].hostname
+        value = length(azurerm_redis_cache.redis) > 0 ? azurerm_redis_cache.redis[0].hostname : ""
       }
       env {
         name  = "REDIS_PORT"
@@ -285,7 +296,8 @@ resource "azurerm_container_app" "worker" {
       }
       env {
         name  = "REDIS_PASSWORD"
-        value = azurerm_redis_cache.redis.primary_access_key
+        # value = azurerm_redis_cache.redis[0].primary_access_key
+        value  = length(azurerm_redis_cache.redis) > 0 ? azurerm_redis_cache.redis[0].primary_access_key : ""
       }
 
       env {
@@ -300,7 +312,8 @@ resource "azurerm_container_app" "worker" {
 
       env {
         name  = "CELERY_BROKER_URL"
-        value = "redis://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:6379/1"
+        # value = "redis://:${azurerm_redis_cache.redis[0].primary_access_key}@${azurerm_redis_cache.redis[0].hostname}:6379/1"
+        value = length(azurerm_redis_cache.redis) > 0 ? "redis://:${azurerm_redis_cache.redis[0].primary_access_key}@${azurerm_redis_cache.redis[0].hostname}:6379/1" : ""
       }
 
       env {
@@ -372,7 +385,7 @@ resource "azurerm_container_app" "api" {
       concurrent_requests = "10"
     }
     max_replicas = 10
-    min_replicas = 0
+    min_replicas = var.aca-app-min-count
     container {
       name   = "langgenius"
       image  = var.dify-api-image
@@ -477,7 +490,8 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "REDIS_HOST"
-        value = azurerm_redis_cache.redis.hostname
+        # value = azurerm_redis_cache.redis[0].hostname
+        value = length(azurerm_redis_cache.redis) > 0 ? azurerm_redis_cache.redis[0].hostname : ""
       }
       env {
         name  = "REDIS_PORT"
@@ -485,7 +499,8 @@ resource "azurerm_container_app" "api" {
       }
       env {
         name  = "REDIS_PASSWORD"
-        value = azurerm_redis_cache.redis.primary_access_key
+        # value = azurerm_redis_cache.redis[0].primary_access_key
+        value  = length(azurerm_redis_cache.redis) > 0 ? azurerm_redis_cache.redis[0].primary_access_key : ""
       }
 
       env {
@@ -500,7 +515,8 @@ resource "azurerm_container_app" "api" {
 
       env {
         name  = "CELERY_BROKER_URL"
-        value = "redis://:${azurerm_redis_cache.redis.primary_access_key}@${azurerm_redis_cache.redis.hostname}:6379/1"
+        # value = "redis://:${azurerm_redis_cache.redis[0].primary_access_key}@${azurerm_redis_cache.redis[0].hostname}:6379/1"
+        value = length(azurerm_redis_cache.redis) > 0 ? "redis://:${azurerm_redis_cache.redis[0].primary_access_key}@${azurerm_redis_cache.redis[0].hostname}:6379/1" : ""
       }
 
       env {
@@ -596,15 +612,16 @@ resource "azurerm_container_app" "api" {
         value = "1000"
       }
 
-      env {
-        name  = "SSRF_PROXY_HTTP_URL"
-        value = "http://ssrfproxy:3128"
-      }
+      # comment the variables for workaround issue #https://github.com/langgenius/dify/issues/6244
+      # env {
+      #   name  = "SSRF_PROXY_HTTP_URL"
+      #   value = "http://ssrfproxy:3128"
+      # }
 
-      env {
-        name  = "SSRF_PROXY_HTTPS_URL"
-        value = "http://ssrfproxy:3128"
-      }
+      # env {
+      #   name  = "SSRF_PROXY_HTTPS_URL"
+      #   value = "http://ssrfproxy:3128"
+      # }
 
       env {
         name  = "INDEXING_MAX_SEGMENTATION_TOKENS_LENGTH"
@@ -639,10 +656,10 @@ resource "azurerm_container_app" "web" {
       concurrent_requests = "10"
     }
     max_replicas = 10
-    min_replicas = 0
+    min_replicas = var.aca-app-min-count
     container {
       name   = "langgenius"
-      image  = "langgenius/dify-web:0.6.11"
+      image  = var.dify-web-image
       cpu    = 1
       memory = "2Gi"
        env {
@@ -673,4 +690,8 @@ resource "azurerm_container_app" "web" {
       }
       transport = "tcp"
     }
+}
+
+output "dify-app-url" {
+  value = azurerm_container_app.nginx.latest_revision_fqdn
 }
